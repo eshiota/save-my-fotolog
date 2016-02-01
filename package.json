@@ -1,0 +1,19 @@
+{
+  "name": "save-my-fotolog",
+  "version": "1.0.0",
+  "description": "Scrapes a user's Fotolog account and saves all his/her photos",
+  "main": "runner.js",
+  "author": "Eduardo Shiota Yasuda",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eshiota/save-my-fotolog.git"
+  },
+  "dependencies": {
+    "chalk": "^1.1.1",
+    "cheerio": "^0.19.0",
+    "minimist": "^1.2.0",
+    "request": "^2.69.0",
+    "rimraf": "^2.5.1"
+  }
+}
