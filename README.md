@@ -14,7 +14,7 @@ npm install
 
 Running:
 
-```js
+```bash
 node runner.js --user=plantas_y_jardin
 ```
 
