@@ -37,7 +37,8 @@ function printStatus (status) {
  * Returns the numeric part of the URL.
  */
 function getUrlNumericPart (url) {
-    return parseInt(url.match(/\/(\d+)/)[1]);
+    console.log(url);
+    return parseInt(url.match(/\/(\d+)\/$/)[1]);
 }
 
 /**
@@ -80,12 +81,15 @@ if (!argv.user) {
 // Program main execution
 // ----------------------
 
-var username = argv.user;
+var usernameInt = argv.user;
+var username = usernameInt.toString();
 var postsPerMosaicPage = 30;
 var postsLinks = [];
 var posts = [];
 var mosaicLink = `http://www.fotolog.com/${username}/mosaic`;
 var dirName = `fotolog_${username}_data`;
+
+
 
 function saveUserFotolog () {
     console.log(chalk.yellow(`Getting data from ${username}...`));
@@ -109,7 +113,7 @@ function saveUserFotolog () {
  */
 function getMosaicPagesLinks ($, username) {
     var $pagination = $('#pagination');
-    var lastLink = $pagination.find('a:last-of-type').attr('href');
+    var lastLink = $pagination.find('a:last-of-type').attr('href') + '/';
     var maxOffset;
 
     printStep('Getting all mosaic pagination links...');
@@ -123,7 +127,7 @@ function getMosaicPagesLinks ($, username) {
     } else if (lastLink === `${mosaicLink}/30`) {
         printStatus('- User has up to 6 pages of photos');
 
-        maxOffset = getUrlNumericPart($pagination.find('a:nth-last-of-type(2)').attr('href'));
+        maxOffset = getUrlNumericPart($pagination.find('a:nth-last-of-type(2)').attr('href') + '/');
     // User has a lot of pages, so the last page is the last link
     } else {
         printStatus('- User has more than 6 pages of photos');
@@ -145,9 +149,9 @@ function buildMosaicPagesLinks (maxOffset) {
         let offset = i * postsPerMosaicPage;
 
         if (offset === 0) {
-            links.push(mosaicLink);
+            links.push(`${mosaicLink}/`);
         } else {
-            links.push(`${mosaicLink}/${offset}`);
+            links.push(`${mosaicLink}/${offset}/`);
         }
     }
 
