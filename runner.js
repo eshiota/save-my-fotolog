@@ -37,7 +37,7 @@ function printStatus (status) {
  * Returns the numeric part of the URL.
  */
 function getUrlNumericPart (url) {
-    return parseInt(url.match(/\/(\d+)/)[1]);
+    return parseInt(url.match(/\/(\d+)(?:\/|$)/)[1]);
 }
 
 /**
