@@ -30,7 +30,7 @@ function printStep (status) {
 }
 
 function printStatus (status) {
-    console.log('  ' + chalk.gray(status));
+    console.log('  ' + chalk.white(status));
 }
 
 /**
