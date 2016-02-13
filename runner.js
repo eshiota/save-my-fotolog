@@ -10,6 +10,7 @@ var request = require("request");
 var argv = require('minimist')(process.argv.slice(2));
 var chalk = require('chalk');
 var cheerio = require('cheerio');
+var he = require('he');
 
 
 // Helpers
@@ -42,7 +43,7 @@ function getUrlNumericPart (url) {
 
 /**
  * Synchronously iterates through all links and incrementally get results,
- * using async callbacks. Returns a Promise which is resulted when all links are
+ * using async callbacks. Returns a Promise which is resolved when all links are
  * iterated.
  */
 function iterateLinks (links, index, memory, callback) {
@@ -81,6 +82,7 @@ if (!argv.user) {
 // ----------------------
 
 var username = argv.user;
+var shouldSkipComments = argv.skipcomments;
 var postsPerMosaicPage = 30;
 var postsLinks = [];
 var posts = [];
@@ -223,9 +225,106 @@ function getPostData (link) {
             data.imageUrl = $('#flog_img_holder').find('img').attr('src');
             data.description = $('#description_photo').text();
 
-            printStatus(`- Retrieved post data from ${link}`);
+            if (shouldSkipComments) {
+                printStatus(`- Retrieved post data from ${link}`);
 
-            resolve(data);
+                resolve(data);
+                return;
+            }
+
+            getPostComments($, data.id).then((comments) => {
+                data.comments = comments;
+
+                printStatus(`- Retrieved post data from ${link}`);
+
+                resolve(data);
+            });
+        });
+    });
+}
+
+/**
+ * Gets a post's comments. The first 44 are retrieved straight from the DOM.
+ * The others are retrieved through POST requests on the comments endpoint.
+ * Returns a Promise which is resolved when all comments are retrived.
+ */
+function getPostComments ($, id) {
+    var comments = [];
+
+    $('.flog_img_comments').each((index, element) => {
+        // The first element is the login form link :S
+        if (index === 0) { return; }
+
+        comments.push({
+            avatarImgUrl: $(element).find('.comment_avatar').attr('src'),
+            username: $(element).find('p b').text(),
+            // this gets the first dd/mm/yyyy occurrence
+            date: $(element).children('p').text().match(/\d{2}\/\d{2}\/\d{4}/)[0],
+            // since the whole comment block is a single paragraph, we get
+            // everything after the first two breaklines
+            message: $(element).children('p').html().split('<br><br>').slice(1).join('<br><br>')
+        });
+    });
+
+    return new Promise((resolve, reject) => {
+        iterateCommentRequests(id, 45, comments).then(resolve);
+    });
+}
+
+/**
+ * Synchronously request comments and incrementally get results,
+ * using async callbacks. Returns a Promise which is resolved when the request
+ * returns 0 results.
+ */
+function iterateCommentRequests (id, offset, memory) {
+    return new Promise((resolve, reject) => {
+        fetchComments(id, offset).then((results) => {
+            memory = memory.concat(results);
+
+            if (results.length === 0) {
+                resolve(memory);
+            } else {
+                iterateCommentRequests(id, offset + 45, memory).then((results) => {
+                    resolve(results);
+                });
+            }
+        });
+    });
+}
+
+/**
+ * Fetches comments from a given post id and offset. Returns a Promise which
+ * is resolved when the comments are fetched.
+ */
+function fetchComments (id, offset) {
+    return new Promise((resolve, reject) => {
+        request.post('http://fotolog.com/ajax/load_more_comments', { form: {
+            user_name: username,
+            identifier: id,
+            offset: offset
+        } }, (error, response, body) => {
+            var response = JSON.parse(body);
+            var comments = response.comments;
+
+            if (!response.success || !comments || (!Array.isArray(comments) && Object.keys(comments) === 0)) {
+                resolve([]);
+                return;
+            }
+
+            if (!Array.isArray(comments)) {
+                comments = Object.keys(comments).map((index) => {
+                    return comments[index];
+                });
+            }
+
+            resolve(comments.map((comment) => {
+                return {
+                    avatarImgUrl : comment.avatar,
+                    username: comment.poster_user_name,
+                    date: comment.posted.split(/\s+/)[1],
+                    message: comment.message
+                }
+            }));
         });
     });
 }
@@ -252,7 +351,14 @@ function savePostsDataToDisk (postsData) {
 
 function savePostDataToDisk (postData) {
     return new Promise((resolve, reject) => {
-        fs.writeFileSync(`${dirName}/${postData.id}.txt`, postData.description);
+        fs.writeFileSync(`${dirName}/${postData.id}.txt`, he.decode(postData.description));
+
+        if(!shouldSkipComments) {
+            fs.writeFileSync(`${dirName}/${postData.id}_comments.txt`, he.decode(postData.comments.reduce((memory, comment) => {
+                return memory + `${comment.username} on ${comment.date}:\n\n${comment.message}\n\n-------------------\n\n`;
+            }, '')));
+        }
+
         request(postData.imageUrl).pipe(fs.createWriteStream(`${dirName}/${postData.id}.jpg`)).on('close', resolve);
 
         printStatus(`- Saved photo and post data from post ${postData.id}`);
