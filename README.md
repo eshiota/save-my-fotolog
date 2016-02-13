@@ -20,7 +20,6 @@ node runner.js --user=plantas_y_jardin
 
 ## Todo
 
-* Fetch all comments
 * Create browseable pages for each post
 
 ## Disclaimer
