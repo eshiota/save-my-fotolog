@@ -400,6 +400,8 @@ function savePostDataToDisk (postData) {
         request(postData.imageUrl).pipe(fs.createWriteStream(`${filePath}/${filePrefix}${postData.id}.jpg`)).on('close', resolve);
 
         printLogLevel(`Saved photo and post data from post ${postData.id}`, 2);
+        printLogLevel(`Post date: ${postDay}/${postMonth}/${postYear}`, 2);
+        printLogLevel(`Comments: ${postData.comments.length}`, 2);
     });
 }
 
