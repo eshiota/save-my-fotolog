@@ -38,9 +38,6 @@ function printLogLevel (str, level) {
     console.log(chalk[levelColors[level]](`${indentation}${str}`));
 }
 
-function printStatus (status) {
-    console.log('  ' + chalk.white(status));
-}
 
 /**
  * Returns the numeric part of the URL.
@@ -117,7 +114,10 @@ function saveUserFotolog () {
 
         getAllPosts(getMosaicPagesLinks($, username))
             .then(getPostsData)
-            .then(savePostsDataToDisk);
+            .then(savePostsDataToDisk)
+            .then((postsData) => {
+                printLogLevel(`Done! Saved ${postsData.length} post(s) to the ${dirName} folder.`, 0);
+            });
     });
 }
 
