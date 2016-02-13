@@ -384,13 +384,18 @@ function savePostDataToDisk (postData) {
             fs.mkdirSync(`${dirName}/${postYear}/${postMonth}`);
         } catch(e) {}
 
-        fs.writeFileSync(`${filePath}/${filePrefix}${postData.id}.txt`, he.decode(postData.description));
-
-        if(!shouldSkipComments) {
-            fs.writeFileSync(`${filePath}/${filePrefix}${postData.id}_comments.txt`, he.decode(postData.comments.reduce((memory, comment) => {
-                return memory + `${comment.username} on ${comment.date}:\n\n${comment.message}\n\n-------------------\n\n`;
-            }, '')));
-        }
+        fs.writeFileSync(`${filePath}/${filePrefix}${postData.id}.txt`,
+            he.decode(postData.description) +
+            (shouldSkipComments ?
+                '' :
+                '\n\n' +
+                '========================================\n' +
+                '                COMMENTS\n' +
+                '========================================\n\n' +
+                he.decode(postData.comments.map((comment) => {
+                    return `${comment.username} on ${comment.date}:\n\n${comment.message}`;
+                }).join('\n\n-------------------\n\n')))
+        );
 
         request(postData.imageUrl).pipe(fs.createWriteStream(`${filePath}/${filePrefix}${postData.id}.jpg`)).on('close', resolve);
 
