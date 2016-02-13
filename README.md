@@ -18,6 +18,12 @@ Running:
 node runner.js --user=plantas_y_jardin
 ```
 
+Options:
+
+```bash
+--skipcomments - don't fetch the posts comments
+```
+
 ## Todo
 
 * Create browseable pages for each post

@@ -23,6 +23,12 @@ function printUsage () {
 Usage:
 
 node runner.js --user=[fotolog_username]
+
+Options:
+
+  --skipcomments
+
+    Don't fetch post comments
 `
     );
 }
