@@ -27,8 +27,9 @@ node runner.js --user=[fotolog_username]
     );
 }
 
-function printStep (status) {
-    console.log(chalk.green(status));
+function printLogLevel (str, level) {
+    var indentation = Array(level + 1).join('  ');
+    console.log(chalk[levelColors[level]](`${indentation}${str}`));
 }
 
 function printStatus (status) {
@@ -47,7 +48,11 @@ function getUrlNumericPart (url) {
  * using async callbacks. Returns a Promise which is resolved when all links are
  * iterated.
  */
-function iterateLinks (links, index, memory, callback) {
+function iterateLinks (links, index, memory, callback, message) {
+    if (message) {
+        printLogLevel(`- ${message} - ${index + 1}/${links.length}`, 1);
+    }
+
     return new Promise((resolve, reject) => {
         callback(links[index]).then((results) => {
             memory = memory.concat(results);
@@ -55,7 +60,7 @@ function iterateLinks (links, index, memory, callback) {
             if (index === links.length - 1) {
                 resolve(memory);
             } else {
-                iterateLinks(links, index + 1, memory, callback).then((results) => {
+                iterateLinks(links, index + 1, memory, callback, message).then((results) => {
                     resolve(results);
                 });
             }
@@ -96,6 +101,7 @@ var localisedDateFormats = {
     es: 'DD MMMM YYYY',
     en: 'MMMM DD YYYY'
 };
+var levelColors = ['green', 'white', 'gray'];
 
 function saveUserFotolog () {
     console.log(chalk.yellow(`Getting data from ${username}...`));
@@ -122,21 +128,21 @@ function getMosaicPagesLinks ($, username) {
     var lastLink = $pagination.find('a:last-of-type').attr('href');
     var maxOffset;
 
-    printStep('Getting all mosaic pagination links...');
+    printLogLevel('Getting all mosaic pagination links...', 0);
 
     // There's only one page
     if ($pagination.find('a').length === 1) {
-        printStatus('- User has only one page of photos');
+        printLogLevel('- User has only one page of photos', 1);
 
         maxOffset = 0;
     // The last page is within the first 6 pages, so the last is the link before
     } else if (lastLink === `${mosaicLink}/30`) {
-        printStatus('- User has up to 6 pages of photos');
+        printLogLevel('- User has up to 6 pages of photos', 1);
 
         maxOffset = getUrlNumericPart($pagination.find('a:nth-last-of-type(2)').attr('href'));
     // User has a lot of pages, so the last page is the last link
     } else {
-        printStatus('- User has more than 6 pages of photos');
+        printLogLevel('- User has more than 6 pages of photos', 1);
 
         maxOffset = getUrlNumericPart(lastLink);
     }
@@ -161,7 +167,7 @@ function buildMosaicPagesLinks (maxOffset) {
         }
     }
 
-    printStatus(`- Built links for ${pagesQty} pages`);
+    printLogLevel(`- Built links for ${pagesQty} pages`, 1);
 
     return links;
 }
@@ -175,7 +181,7 @@ function buildMosaicPagesLinks (maxOffset) {
  * resolved when all posts are retrived.
  */
 function getAllPosts (mosaicLinks) {
-    printStep('Getting all posts links...');
+    printLogLevel('Getting all posts links...', 0);
 
     return new Promise((resolve, reject) => {
         iterateLinks(mosaicLinks, 0, [], getPostsFromMosaicLink).then(resolve);
@@ -196,7 +202,7 @@ function getPostsFromMosaicLink (link) {
                 postLinks.push($(element).attr('href'));
             });
 
-            printStatus(`- Retrieved ${postLinks.length} post links from ${link}`);
+            printLogLevel(`- Retrieved ${postLinks.length} post links from ${link}`, 1);
 
             resolve(postLinks);
         });
@@ -212,10 +218,10 @@ function getPostsFromMosaicLink (link) {
  * when all data is retrieved.
  */
 function getPostsData (postsLinks) {
-    printStep(`Retrieving data from ${postsLinks.length} posts...`);
+    printLogLevel(`Retrieving data from ${postsLinks.length} posts...`, 0);
 
     return new Promise((resolve, reject) => {
-        iterateLinks(postsLinks, 0, [], getPostData).then(resolve);
+        iterateLinks(postsLinks, 0, [], getPostData, 'Retrieving post data').then(resolve);
     });
 }
 
@@ -239,7 +245,7 @@ function getPostData (link) {
             data.date = moment(data.description.match(dateRegex)[0].split(/\s+/).slice(0, 3).join(' '), localisedDateFormats[lang]);
 
             if (shouldSkipComments) {
-                printStatus(`- Retrieved post data from ${link}`);
+                printLogLevel(`Retrieved post data from ${link}`, 2);
 
                 resolve(data);
                 return;
@@ -248,7 +254,7 @@ function getPostData (link) {
             getPostComments($, data.id).then((comments) => {
                 data.comments = comments;
 
-                printStatus(`- Retrieved post data from ${link}`);
+                printLogLevel(`Retrieved post data from ${link}`, 2);
 
                 resolve(data);
             });
@@ -347,18 +353,18 @@ function fetchComments (id, offset) {
 // -----------------------
 
 function savePostsDataToDisk (postsData) {
-    printStep(`Saving all data from ${username}`);
+    printLogLevel(`Saving all data from ${username}`, 0);
 
     rimraf.sync(dirName);
 
-    printStatus(`- Removed any previous data`);
+    printLogLevel(`- Removed any previous data`, 1);
 
     fs.mkdirSync(dirName);
 
-    printStatus(`- Created output directory`);
+    printLogLevel(`- Created output directory`, 1);
 
     return new Promise((resolve, reject) => {
-        iterateLinks(postsData, 0, [], savePostDataToDisk).then(resolve);
+        iterateLinks(postsData, 0, [], savePostDataToDisk, 'Saving post data').then(resolve);
     });
 }
 
@@ -388,7 +394,7 @@ function savePostDataToDisk (postData) {
 
         request(postData.imageUrl).pipe(fs.createWriteStream(`${filePath}/${filePrefix}${postData.id}.jpg`)).on('close', resolve);
 
-        printStatus(`- Saved photo and post data from post ${postData.id}`);
+        printLogLevel(`Saved photo and post data from post ${postData.id}`, 2);
     });
 }
 
