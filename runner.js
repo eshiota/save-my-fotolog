@@ -11,6 +11,7 @@ var argv = require('minimist')(process.argv.slice(2));
 var chalk = require('chalk');
 var cheerio = require('cheerio');
 var he = require('he');
+var moment = require('moment');
 
 
 // Helpers
@@ -88,6 +89,13 @@ var postsLinks = [];
 var posts = [];
 var mosaicLink = `http://www.fotolog.com/${username}/mosaic`;
 var dirName = `fotolog_${username}_data`;
+var localisedDateFormats = {
+    it: 'DD MMMM YYYY',
+    pt: 'DD MMMM YYYY',
+    fr: 'DD MMMM YYYY',
+    es: 'DD MMMM YYYY',
+    en: 'MMMM DD YYYY'
+};
 
 function saveUserFotolog () {
     console.log(chalk.yellow(`Getting data from ${username}...`));
@@ -220,10 +228,15 @@ function getPostData (link) {
         request(link, (error, response, body) => {
             var $ = cheerio.load(body);
             var data = {};
+            var lang = $('html').attr('lang') || 'en';
+            var dateRegex = /[^\s]+\s+[^\s]+\s+[^\s]+\s+\d+\s+(?:Views|Vistas|Vues|Visualizações)/;
 
             data.id = getUrlNumericPart(link);
             data.imageUrl = $('#flog_img_holder').find('img').attr('src');
             data.description = $('#description_photo').text();
+            // Fotolog doesn't give us an easy way to get the date so... yeah.
+            moment.locale(lang);
+            data.date = moment(data.description.match(dateRegex)[0].split(/\s+/).slice(0, 3).join(' '), localisedDateFormats[lang]);
 
             if (shouldSkipComments) {
                 printStatus(`- Retrieved post data from ${link}`);
@@ -351,15 +364,29 @@ function savePostsDataToDisk (postsData) {
 
 function savePostDataToDisk (postData) {
     return new Promise((resolve, reject) => {
-        fs.writeFileSync(`${dirName}/${postData.id}.txt`, he.decode(postData.description));
+        var postYear = postData.date.format('YYYY');
+        var postMonth = postData.date.format('MM');
+        var postDay = postData.date.format('DD');
+        var filePath = `${dirName}/${postYear}/${postMonth}`;
+        var filePrefix = `${postYear}${postMonth}${postDay}_`;
+
+        try {
+            fs.mkdirSync(`${dirName}/${postYear}`);
+        } catch(e) {}
+
+        try {
+            fs.mkdirSync(`${dirName}/${postYear}/${postMonth}`);
+        } catch(e) {}
+
+        fs.writeFileSync(`${filePath}/${filePrefix}${postData.id}.txt`, he.decode(postData.description));
 
         if(!shouldSkipComments) {
-            fs.writeFileSync(`${dirName}/${postData.id}_comments.txt`, he.decode(postData.comments.reduce((memory, comment) => {
+            fs.writeFileSync(`${filePath}/${filePrefix}${postData.id}_comments.txt`, he.decode(postData.comments.reduce((memory, comment) => {
                 return memory + `${comment.username} on ${comment.date}:\n\n${comment.message}\n\n-------------------\n\n`;
             }, '')));
         }
 
-        request(postData.imageUrl).pipe(fs.createWriteStream(`${dirName}/${postData.id}.jpg`)).on('close', resolve);
+        request(postData.imageUrl).pipe(fs.createWriteStream(`${filePath}/${filePrefix}${postData.id}.jpg`)).on('close', resolve);
 
         printStatus(`- Saved photo and post data from post ${postData.id}`);
     });
