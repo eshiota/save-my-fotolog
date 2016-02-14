@@ -136,8 +136,13 @@ function getMosaicPagesLinks ($, username) {
 
     printLogLevel('Getting all mosaic pagination links...', 0);
 
+    // There's no pagination
+    if ($pagination.length === 0 || $pagination.find('a').length === 0) {
+        printLogLevel('- User has only one page of photos, no pagination', 1);
+
+        maxOffset = 0;
     // There's only one page
-    if ($pagination.find('a').length === 1) {
+    } else if ($pagination.find('a').length === 1) {
         printLogLevel('- User has only one page of photos', 1);
 
         maxOffset = 0;
